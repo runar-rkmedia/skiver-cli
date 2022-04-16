@@ -1,0 +1,30 @@
+# Make sure to check the documentation at https://goreleaser.com
+project_name: skiver
+builds:
+  - main: ./cli/main.go
+    id: skiver-cli
+    goos:
+      - linux
+      - windows
+      - darwin
+archives:
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      386: i386
+      amd64: x86_64
+scoop:
+  bucket:
+    owner: runar-rkmedia
+    name: scoops
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
