@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -76,6 +77,8 @@ func getFile(f string) (*os.File, bool) {
 }
 
 func runCmd(command string, fPath string, stdin io.Reader) ([]byte, error) {
+	fPath = filepath.FromSlash(fPath)
+	command = filepath.FromSlash(command)
 	a := strings.Split(command, " ")
 	cmd := a[0]
 	args := []string{}
@@ -96,6 +99,7 @@ func runCmd(command string, fPath string, stdin io.Reader) ([]byte, error) {
 	}
 	out, err := c.CombinedOutput()
 	if err != nil {
+		l.Error().Err(err).Interface("command", &c).Str("output", string(out)).Msg("Failed to run command")
 		return out, fmt.Errorf("Failed to run onReplaceCmd %s %s %v: %w", c.Path, string(out), c.Args, err)
 	}
 	return out, nil

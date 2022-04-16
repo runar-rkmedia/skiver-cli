@@ -192,8 +192,9 @@ func initConfig() {
 	}
 
 	l = logger.InitLogger(logger.LogConfig{
-		Format: CLI.LogFormat,
-		Level:  CLI.LogLevel,
+		Format:     CLI.LogFormat,
+		Level:      CLI.LogLevel,
+		WithCaller: CLI.LogLevel == "debug",
 	})
 
 }

@@ -21,7 +21,9 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/runar-rkmedia/skiver/cli/cmd"
+import (
+	"github.com/runar-rkmedia/skiver-cli/cmd"
+)
 
 func main() {
 	cmd.Execute()

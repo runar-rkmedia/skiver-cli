@@ -1,7 +1,7 @@
 # Make sure to check the documentation at https://goreleaser.com
 project_name: skiver
 builds:
-  - main: ./cli/main.go
+  - main: ./main.go
     id: skiver-cli
     goos:
       - linux
