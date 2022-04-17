@@ -1,7 +1,7 @@
 <!-- This file is generated. -->
 # Skiver-cli
 
-CLI accompanying [Skiver](https://githbub.com/runar-rkmedia/skiver), a translation-management solution.
+CLI accompanying [Skiver](https://github.com/runar-rkmedia/skiver), a translation-management solution.
 
 ## Installation
 
