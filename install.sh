@@ -96,6 +96,6 @@ mv "${tmpFile}" "${savePath}"
 
 echo "Skiver installed successfully"
 
-echo "cleaning up"
+echo "Cleaning up"
 
 rm "${archive}"

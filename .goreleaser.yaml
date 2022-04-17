@@ -1,19 +1,31 @@
 # Make sure to check the documentation at https://goreleaser.com
 project_name: skiver
+before:
+  hooks:
+    - 'make readme'
 builds:
   - main: ./main.go
+    ldflags:
+       - '-s -w {{.Env.LDFLAG}}'
     id: skiver-cli
     goos:
       - linux
       - windows
       - darwin
 archives:
-  - replacements:
+  - 
+    # Dont want the verion included in the name, since it makes scripting a bit harder.
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    # There replacements match output from uname / uname -m, which is better for scripting
+    replacements:
       darwin: Darwin
       linux: Linux
       windows: Windows
       386: i386
       amd64: x86_64
+    format_overrides:
+      - goos: windows
+        format: zip
 scoop:
   bucket:
     owner: runar-rkmedia
