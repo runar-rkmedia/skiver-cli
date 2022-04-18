@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/mattn/go-isatty"
 	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -61,6 +62,8 @@ type config struct {
 	PrettierPath      string   `help:"Path-override for prettier" default:"prettier" json:"prettier_path"`
 	PrettierDSlimPath string   `help:"Path-override for prettier_d_slim, which should be faster than regular prettier" default:"prettier_d_slim" json:"prettier_d_slim_path"`
 	IgnoreFilter      []string `help:"Ignore-filter for files" json:"ignore_filter"`
+	NoColor           bool     `help:"If set, disables color for printing of output. Does not affect logging." json:"no_color"`
+	HighlightStyle    string   `help:"Highlighting-style to use. See https://github.com/alecthomas/chroma/tree/master/styles for valid styles" json:"highlight_style"`
 
 	Import struct {
 		Source string `help:"Source-file for import" arg:"" env:"SKIVER_IMPORT_SOURCE" json:"source"`
@@ -91,11 +94,12 @@ var (
 	_api       *Api
 
 	// These are added at build...
-	version   string
-	date      string
-	buildDate time.Time
-	builtBy   string
-	commit    string
+	version       string
+	date          string
+	buildDate     time.Time
+	builtBy       string
+	commit        string
+	isInteractive bool
 )
 
 func init() {
@@ -105,6 +109,13 @@ func init() {
 			panic(fmt.Errorf("Failed to parse build-date: %w", err))
 		}
 		buildDate = t
+	}
+	if isatty.IsTerminal(os.Stdout.Fd()) {
+		isInteractive = true
+	} else if isatty.IsCygwinTerminal(os.Stdout.Fd()) {
+		isInteractive = true
+	} else {
+		isInteractive = false
 	}
 }
 
@@ -157,7 +168,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/skiver/skiver-cli.yaml)")
 
 	s := reflect.TypeOf(CLI)
-	for _, v := range []string{"Project", "WithPrettier", "PrettierPath", "PrettierDSlimPath", "LogFormat", "LogLevel", "URI", "Locale", "Token", "IgnoreFilter"} {
+	for _, v := range []string{"HighlightStyle", "NoColor", "Project", "WithPrettier", "PrettierPath", "PrettierDSlimPath", "LogFormat", "LogLevel", "URI", "Locale", "Token", "IgnoreFilter"} {
 		mustSetVar(s, v, rootCmd, "")
 	}
 

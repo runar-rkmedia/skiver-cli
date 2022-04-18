@@ -22,7 +22,16 @@ func write(fields ...any) {
 }
 
 func marshalout(o any, format formatMode) {
-	write(string(marshal(o, format)))
+	exts := formatExtMap[format]
+	ext := ""
+	if len(exts) > 0 {
+		ext = exts[0]
+	}
+	o, err := PrettyPrinttFile(ext, string(marshal(o, format)))
+	if err != nil {
+		l.Warn().Err(err).Msg("error during pretty-printing")
+	}
+	write(o)
 }
 func marshal(o any, format formatMode) []byte {
 	switch format {

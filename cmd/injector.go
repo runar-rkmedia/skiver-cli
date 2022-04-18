@@ -98,6 +98,7 @@ func (in Injecter) Inject() error {
 						in.l.Fatal().Err(err).Str("path", ss.FilePath).Msg("Failed replacement in file")
 					}
 					if in.l.HasDebug() {
+
 						in.l.Debug().
 							Str("path", sst.FilePath).
 							Str("duration", sst.Duration.String()).
@@ -207,7 +208,8 @@ func (in Injecter) VisitFile(fPath string, info fs.FileInfo) (bool, error) {
 
 	if in.DryRun {
 		fmt.Println(fPath)
-		fmt.Println(replacement)
+		s, _ := PrettyPrinttFile(fPath, replacement)
+		fmt.Println(s)
 		return false, nil
 	}
 	f.Seek(0, 0)

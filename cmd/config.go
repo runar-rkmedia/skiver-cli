@@ -49,6 +49,12 @@ var formatMap = map[formatMode][]string{
 	formatJson: {"json"},
 }
 
+var formatExtMap = map[formatMode][]string{
+	formatYaml: {".yaml", ".yml"},
+	formatToml: {".toml"},
+	formatJson: {".json"},
+}
+
 // configCmd represents the config command
 var configCmd = &cobra.Command{
 	Use:       "config",
