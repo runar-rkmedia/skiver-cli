@@ -265,6 +265,7 @@ func tKeysTraverserFunc(l logger.AppLogger, m map[string]map[string]string, impo
 			l.Fatal().Err(err).Msg("Failed to calculate relative importPath")
 		}
 		relativePath = stripExtension(relativePath)
+		relativePath = filepath.ToSlash(relativePath)
 		importToken := chroma.Token{Value: fmt.Sprintf(`import tKeys from "%s"`, relativePath) + "\n"}
 		tokens = append([]chroma.Token{importToken}, tokens...)
 		tokenizer.SetTokens(tokens)
