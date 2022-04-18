@@ -183,6 +183,18 @@ func initConfig() {
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		configFile = viper.ConfigFileUsed()
+	} else {
+
+		l = logger.InitLogger(logger.LogConfig{
+			Format:     "human",
+			Level:      "debug",
+			WithCaller: true,
+		})
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found; ignore error if desired
+			l.Fatal().Err(err).Msg("Config-file not found. You can create one with `skiver config new`")
+		}
+		l.Fatal().Err(err).Str("config-file", viper.ConfigFileUsed()).Msg("Failed to read config-file")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
