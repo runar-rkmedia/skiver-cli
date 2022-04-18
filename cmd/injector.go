@@ -24,11 +24,13 @@ type Injecter struct {
 	OnReplaceCmd    string
 	ExtensionFilter map[string]bool
 	IgnoreFilter    []string
+	Traverser       TraverserFunc
 	Regex           *regexp.Regexp
 	ReplacementFunc ReplacementFunc
 }
 
 type ReplacementFunc = func(groups []string) (s string, changed bool)
+type TraverserFunc = func(*Tokenizer)
 
 type st = struct {
 	FilePath string
@@ -47,7 +49,24 @@ func (st _written) Swap(i, j int) {
 	st[i], st[j] = st[j], st[i]
 }
 
-func NewInjector(l logger.AppLogger, dir string, dryRun bool, onReplace string, ignoreFilter []string, extFilter []string, regex *regexp.Regexp, replacementFunc ReplacementFunc) Injecter {
+func NewInjector(
+	l logger.AppLogger,
+	dir string,
+	dryRun bool,
+	onReplace string,
+	ignoreFilter []string,
+	extFilter []string,
+	regex *regexp.Regexp,
+	replacementFunc ReplacementFunc,
+	traverserFunc TraverserFunc,
+) Injecter {
+
+	if replacementFunc == nil && traverserFunc == nil {
+		l.Fatal().Msg("No replacementFunc and no traverserFunc")
+	}
+	if replacementFunc != nil && traverserFunc != nil {
+		l.Fatal().Msg("replacementFunc and traverserFunc cannot be used at the same time")
+	}
 
 	in := Injecter{
 		l:               l,
@@ -58,6 +77,7 @@ func NewInjector(l logger.AppLogger, dir string, dryRun bool, onReplace string, 
 		ExtensionFilter: map[string]bool{},
 		Regex:           regex,
 		ReplacementFunc: replacementFunc,
+		Traverser:       traverserFunc,
 	}
 
 	for _, ext := range extFilter {
@@ -137,6 +157,9 @@ func (in Injecter) Inject() error {
 		}
 		for _, ignore := range in.IgnoreFilter {
 			// TODO: use gitignore etc.
+			if fPath == ignore {
+				return nil
+			}
 			if strings.Contains(name, ignore) {
 				return nil
 			}
@@ -190,17 +213,33 @@ func (in Injecter) VisitFile(fPath string, info fs.FileInfo) (bool, error) {
 	}
 	s := string(b)
 	changed := false
-	replacement := ReplaceAllStringSubmatchFunc(in.Regex, s, func(groups []string, start, end int) string {
-		if len(groups) < 4 {
-			l.Fatal().Interface("groups", groups).Msg("Expected to have 4 groups (whole match, prefix, content and suffix)")
+	var replacement string
+	if in.ReplacementFunc != nil {
+		replacement = ReplaceAllStringSubmatchFunc(in.Regex, s, func(groups []string, start, end int) string {
+			if len(groups) < 4 {
+				l.Fatal().Interface("groups", groups).Msg("Expected to have 4 groups (whole match, prefix, content and suffix)")
+			}
+			repl, hasChange := in.ReplacementFunc(groups[1:])
+			if !hasChange {
+				return groups[0]
+			}
+			changed = true
+			return repl
+		})
+	} else if in.Traverser != nil {
+		t, err := TokenizeSourceFileContent(fPath, s)
+		if err != nil {
+			return false, fmt.Errorf("Failed to tokenize content of file %s: %w", fPath, err)
 		}
-		repl, hasChange := in.ReplacementFunc(groups[1:])
-		if !hasChange {
-			return groups[0]
+		in.Traverser(&t)
+		changed = t.IsChanged()
+		if changed {
+			replacement = t.Concat()
 		}
-		changed = true
-		return repl
-	})
+
+	} else {
+		return false, fmt.Errorf("Did not receive a replacementFunc nor a traverserFunc")
+	}
 
 	if !changed {
 		return false, nil

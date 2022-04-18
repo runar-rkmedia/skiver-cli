@@ -63,7 +63,7 @@ var unusedCmd = &cobra.Command{
 		}()
 		filter := []string{"ts", "tsx"}
 
-		in := NewInjector(l, CLI.Unused.Dir, true, "", CLI.IgnoreFilter, filter, regex, replacementFunc)
+		in := NewInjector(l, CLI.Unused.Dir, true, "", CLI.IgnoreFilter, filter, regex, replacementFunc, nil)
 		err := in.Inject()
 		if err != nil {
 			l.Fatal().Err(err).Msg("Failed to inject")

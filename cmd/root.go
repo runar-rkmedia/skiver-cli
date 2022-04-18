@@ -81,6 +81,7 @@ type config struct {
 		DryRun    bool   `help:"Enable dry-run" json:"dry_run"`
 		OnReplace string `help:"Command to run on file after replacement, like prettier" json:"on_replace"`
 		Dir       string `help:"Directory for source-code" type:"existingdir" arg:"" json:"dir"`
+		Type      string `help:"Type of injection. Can be either 'comment', or 'tKeys'" json:"type"`
 	} `help:"Inject helper-comments into source-files" cmd:"" json:"inject"`
 	Config struct {
 		Format string `enum:"json,yaml,toml" default:"toml" json:"format"`
@@ -100,6 +101,7 @@ var (
 	builtBy       string
 	commit        string
 	isInteractive bool
+	isDev         bool
 )
 
 func init() {
@@ -117,6 +119,7 @@ func init() {
 	} else {
 		isInteractive = false
 	}
+	isDev = version == ""
 }
 
 func requireApi(withAuthentciation bool) *Api {

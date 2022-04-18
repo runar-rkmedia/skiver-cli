@@ -59,7 +59,7 @@ var formatExtMap = map[formatMode][]string{
 var configCmd = &cobra.Command{
 	Use:       "config",
 	Short:     "Show information about the current configuration, or create a new one",
-	ValidArgs: []string{"show", "active", "raw", "new"},
+	ValidArgs: []string{"show", "active", "raw", "new", "default"},
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 {
 			switch args[0] {
@@ -70,6 +70,8 @@ var configCmd = &cobra.Command{
 				marshalout(c, format)
 			case "show":
 				marshalout(CLI, format)
+			case "default":
+				marshalout(config{}, format)
 			case "new":
 				fPath := "skiver-cli." + formatMap[format][0]
 				_, err := os.Stat(fPath)
