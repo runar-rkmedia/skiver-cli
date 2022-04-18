@@ -130,8 +130,9 @@ func requireApi(withAuthentciation bool) *Api {
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:     "Skiver-CLI",
-	Short:   "Interactions with skiver, a developer-focused translation-service",
+	Use:   "Skiver-CLI",
+	Short: "Interactions with skiver, a developer-focused translation-service",
+
 	Version: version,
 
 	// Uncomment the following line if your bare application
@@ -310,9 +311,11 @@ func setVar(t reflect.Type, name string, cmd *cobra.Command, subkey string) erro
 		panic(fmt.Sprintf("no handler for %s, %s", field.Name, kind))
 	}
 	viper.BindPFlag(subkey+mapstructure, cmd.PersistentFlags().Lookup(cfgName))
+	// fmt.Printf("\n'%s%s' '%s' ", subkey, mapstructure, cfgName)
 	alias := strings.ToLower(name)
 	if mapstructure != alias {
-		viper.RegisterAlias(alias, subkey+mapstructure)
+		// fmt.Println("\n   >>>> alias", alias, subkey+mapstructure)
+		viper.RegisterAlias(subkey+alias, subkey+mapstructure)
 	}
 	return nil
 }

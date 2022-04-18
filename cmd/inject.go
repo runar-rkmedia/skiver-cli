@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 
@@ -35,6 +36,12 @@ var injectCmd = &cobra.Command{
 	Use:   "inject",
 	Short: "Inject comments into source-code for locale-usage, with rich descriptions",
 	Run: func(cmd *cobra.Command, args []string) {
+		if CLI.Inject.Dir == "" {
+			l.Fatal().Msg("Inject.Dir is required")
+		}
+		if _, err := os.Stat(CLI.Inject.Dir); err != nil {
+			l.Fatal().Err(err).Msg("Error locating Inject.Dir")
+		}
 		api := requireApi(false)
 		m := BuildTranslationKeyFromApi(*api, l, CLI.Project, CLI.Locale)
 		sorted := utils.SortedMapKeys(m)
@@ -101,7 +108,11 @@ var injectCmd = &cobra.Command{
 		if err != nil {
 			l.Fatal().Err(err).Msg("Failed to inject")
 		}
-		l.Info().Msg("Done")
+		l.Info().
+			Str("dir", CLI.Inject.Dir).
+			Str("on-replace", CLI.Inject.OnReplace).
+			Bool("dry-run", CLI.Inject.DryRun).
+			Msg("Done")
 	},
 }
 

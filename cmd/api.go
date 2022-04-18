@@ -27,11 +27,15 @@ type Api struct {
 
 func NewAPI(l logger.AppLogger, endpoint string) Api {
 	c := http.Client{Timeout: time.Minute}
-	return Api{
+	api := Api{
 		l:        l,
 		endpoint: strings.TrimSuffix(endpoint, "/"),
 		client:   &c,
 	}
+	if l.HasDebug() {
+		l.Debug().Str("uri", endpoint).Msg("Using skiver-api")
+	}
+	return api
 }
 
 func (a *Api) SetToken(token string) {
