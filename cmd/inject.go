@@ -46,62 +46,8 @@ var injectCmd = &cobra.Command{
 		m := BuildTranslationKeyFromApi(*api, l, CLI.Project, CLI.Locale)
 		sorted := utils.SortedMapKeys(m)
 		regex := buildTranslationKeyRegexFromMap(sorted)
-		replacementFunc := func(groups []string) (replacement string, changed bool) {
-			if len(groups) < 3 {
-				return "", false
-
-			}
-			prefix := groups[0]
-			// If the line is a comment, we dont care about replacing it
-			if strings.HasPrefix(strings.TrimSpace(prefix), "//") {
-				return "", false
-			}
-			key := groups[1]
-			suffix := groups[2]
-			rest := strings.Join(groups[3:], "")
-			skiverComment := "// skiver: "
-			var prevSkiverComment string
-			if i := strings.Index(rest, skiverComment); i >= 0 {
-				prevSkiverComment = rest[i:]
-				rest = rest[0:i]
-			}
-
-			found, ok := m[key]
-			if !ok {
-				panic("Not found")
-			}
-			var ts string
-			if len(found) == 0 {
-				return "", false
-			}
-			f := utils.SortedMapKeys(found)
-			for _, k := range f {
-				if found[k] == "" {
-					continue
-				}
-				ts += fmt.Sprintf("(%s) %s; ", k, found[k])
-
-			}
-			if ts == "" {
-				return "", false
-			}
-
-			ts = skiverComment + ts
-			ts = newLineReplacer.Replace(ts)
-			ts = strings.TrimSuffix(ts, " ")
-			if prevSkiverComment != "" {
-				if prevSkiverComment == ts {
-					return "", false
-				}
-			}
-
-			if strings.TrimSpace(rest) == "," {
-				return prefix + key + suffix + ", " + ts, true
-			}
-
-			return prefix + key + suffix + ts + "\n" + rest, true
-		}
 		filter := []string{"ts", "tsx"}
+		replacementFunc := commentReplacementFunc(m)
 
 		in := NewInjector(l, CLI.Inject.Dir, CLI.Inject.DryRun, CLI.Inject.OnReplace, CLI.IgnoreFilter, filter, regex, replacementFunc)
 		err := in.Inject()
@@ -114,6 +60,65 @@ var injectCmd = &cobra.Command{
 			Bool("dry-run", CLI.Inject.DryRun).
 			Msg("Done")
 	},
+}
+
+// Injects comments after the translation-key
+func commentReplacementFunc(m map[string]map[string]string) func([]string) (string, bool) {
+	return func(groups []string) (replacement string, changed bool) {
+		if len(groups) < 3 {
+			return "", false
+
+		}
+		prefix := groups[0]
+		// If the line is a comment, we dont care about replacing it
+		if strings.HasPrefix(strings.TrimSpace(prefix), "//") {
+			return "", false
+		}
+		key := groups[1]
+		suffix := groups[2]
+		rest := strings.Join(groups[3:], "")
+		skiverComment := "// skiver: "
+		var prevSkiverComment string
+		if i := strings.Index(rest, skiverComment); i >= 0 {
+			prevSkiverComment = rest[i:]
+			rest = rest[0:i]
+		}
+
+		found, ok := m[key]
+		if !ok {
+			panic("Not found")
+		}
+		var ts string
+		if len(found) == 0 {
+			return "", false
+		}
+		f := utils.SortedMapKeys(found)
+		for _, k := range f {
+			if found[k] == "" {
+				continue
+			}
+			ts += fmt.Sprintf("(%s) %s; ", k, found[k])
+
+		}
+		if ts == "" {
+			return "", false
+		}
+
+		ts = skiverComment + ts
+		ts = newLineReplacer.Replace(ts)
+		ts = strings.TrimSuffix(ts, " ")
+		if prevSkiverComment != "" {
+			if prevSkiverComment == ts {
+				return "", false
+			}
+		}
+
+		if strings.TrimSpace(rest) == "," {
+			return prefix + key + suffix + ", " + ts, true
+		}
+
+		return prefix + key + suffix + ts + "\n" + rest, true
+	}
 }
 
 func init() {

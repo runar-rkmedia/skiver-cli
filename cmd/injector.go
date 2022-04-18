@@ -149,23 +149,28 @@ func (in Injecter) Inject() error {
 	if err := filepath.Walk(in.Dir, walker); err != nil {
 		return err
 	}
-	in.l.Debug().
-		Str("dir", in.Dir).
-		Int("count", len(paths)).
-		Int("concurrency", concurrency).
-		Msg("Started injection for files")
+	debug := in.l.HasDebug()
+	if debug {
+		in.l.Debug().
+			Str("dir", in.Dir).
+			Int("count", len(paths)).
+			Int("concurrency", concurrency).
+			Msg("Started injection for files")
 
+	}
 	wg.Wait()
 
-	in.l.Debug().
-		Str("dir", in.Dir).
-		Int("count", len(paths)).
-		Int("concurrency", concurrency).
-		Int("writtenCount", len(written)).
-		Str("duration", time.Now().Sub(start).String()).
-		Msg("Completed injection for files")
+	if debug {
+		in.l.Debug().
+			Str("dir", in.Dir).
+			Int("count", len(paths)).
+			Int("concurrency", concurrency).
+			Int("writtenCount", len(written)).
+			Str("duration", time.Now().Sub(start).String()).
+			Msg("Completed injection for files")
+	}
 
-	if in.l.HasDebug() {
+	if debug {
 		sort.Sort(written)
 		for _, v := range written {
 			fmt.Println(v.Duration, v.FilePath)
