@@ -123,7 +123,7 @@ with_prettier = false
 
 # Generate files from project etc.
 [generate]
-  # Generate files from export. Common formats are: i18n,typescript.
+  # Generate files from export. Common formats are: i18n,tKeys.
   format = ""
   # Ouput file to write to
   path = ""

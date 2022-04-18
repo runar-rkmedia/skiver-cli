@@ -69,6 +69,11 @@ var generateCmd = &cobra.Command{
 		if l.HasDebug() {
 			ll.Msg("Generating file")
 		}
+		if format == "tKeys" {
+			// TODO: make an alias for this format on the server
+			// (don't have the time right now)
+			format = "typescript"
+		}
 		err := api.Export(CLI.Project, format, locale, w)
 		if err != nil {
 			l.Fatal().Err(err).Msg("Failed export")

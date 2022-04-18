@@ -70,7 +70,7 @@ type config struct {
 	} `help:"Import from file" cmd:"" json:"import"`
 	Generate struct {
 		Path   string `help:"Ouput file to write to" type:"path" env:"SKIVER_GENERATE_PATH" json:"path"`
-		Format string `help:"Generate files from export. Common formats are: i18n,typescript." json:"format" required:"true"`
+		Format string `help:"Generate files from export. Common formats are: i18n,tKeys." json:"format" required:"true"`
 	} `help:"Generate files from project etc." cmd:"" json:"generate"`
 	Unused struct {
 		Source string `help:"Source-file to check-against. If ommitted, the upstream project is used as source" json:"source"`
