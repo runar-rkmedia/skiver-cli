@@ -41,3 +41,28 @@ The [release-binaries are available for manual download](https://github.com/runa
 ```
 {{.Usage}}
 ```
+
+### Configuration
+
+Configuration-files can be used in various formats, including `yml`, `toml` and `json`.
+
+A benefit of using `toml` here is that it can be generated with comments included.
+
+The file should be named `skiver-cli.toml` (change the extension to fit your preferred format).
+
+The can store the file in your home-directory/config-directory, or in the current path, which is what you want in most cases when working with projects.
+
+An initial file can be generated with:
+
+```shell-script
+skiver config new
+```
+
+#### Current Configuration-file (toml)
+
+```toml
+{{.Config}}
+```
+
+
+

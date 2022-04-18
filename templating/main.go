@@ -15,9 +15,10 @@ var l = logger.InitLogger(logger.LogConfig{
 	WithCaller: true,
 })
 
-func getUsage() string {
+func getUsage(args ...string) string {
 
-	c := exec.Command("go", "run", "main.go")
+	args = append([]string{"run", "main.go"}, args...)
+	c := exec.Command("go", args...)
 
 	out, err := c.CombinedOutput()
 	if err != nil {
@@ -38,6 +39,7 @@ func main() {
 	data := map[string]interface{}{
 		"Header": "This file is generated.",
 		"Usage":  getUsage(),
+		"Config": getUsage("config", "default", "-f", "toml"),
 	}
 
 	err = tmpl.ExecuteTemplate(f, "baseReadme.md", data)
