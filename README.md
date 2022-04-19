@@ -54,6 +54,7 @@ Available Commands:
   unused      Find unused translations
 
 Flags:
+      --color string                  Force set color output. one of 'auto', 'always', 'none'.
       --config string                 config file (default is $HOME/skiver/skiver-cli.yaml)
   -h, --help                          help for Skiver-CLI
       --highlight-style string        Highlighting-style to use. See https://github.com/alecthomas/chroma/tree/master/styles for valid styles
@@ -61,7 +62,6 @@ Flags:
   -l, --locale string                 Locale to use
       --log-format string             Format to log as (default "human")
       --log-level string              Level for logging. (default "info")
-      --no-color                      If set, disables color for printing of output. Does not affect logging.
       --prettier-d-slim-path string   Path-override for prettier_d_slim, which should be faster than regular prettier (default "prettier_d_slim")
       --prettier-path string          Path-override for prettier (default "prettier")
   -p, --project string                Project-id/ShortName
@@ -92,6 +92,8 @@ skiver config new
 #### Current Configuration-file (toml)
 
 ```toml
+# Force set color output. one of 'auto', 'always', 'none'.
+color = ""
 # Highlighting-style to use. See https://github.com/alecthomas/chroma/tree/master/styles for valid styles
 highlight_style = ""
 # Ignore-filter for files
@@ -102,8 +104,6 @@ locale = ""
 log_format = ""
 # Level for logging.
 log_level = ""
-# If set, disables color for printing of output. Does not affect logging.
-no_color = false
 # Path-override for prettier_d_slim, which should be faster than regular prettier
 prettier_d_slim_path = ""
 # Path-override for prettier
