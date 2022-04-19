@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/imdario/mergo"
 	"github.com/joho/godotenv"
 	"github.com/mattn/go-isatty"
 	"github.com/runar-rkmedia/go-common/logger"
@@ -62,7 +63,7 @@ type config struct {
 	PrettierPath      string   `help:"Path-override for prettier" default:"prettier" json:"prettier_path"`
 	PrettierDSlimPath string   `help:"Path-override for prettier_d_slim, which should be faster than regular prettier" default:"prettier_d_slim" json:"prettier_d_slim_path"`
 	IgnoreFilter      []string `help:"Ignore-filter for files" json:"ignore_filter"`
-	NoColor           bool     `help:"If set, disables color for printing of output. Does not affect logging." json:"no_color"`
+	Color             string   `help:"Force set color output. one of 'auto', 'always', 'none'." json:"color"`
 	HighlightStyle    string   `help:"Highlighting-style to use. See https://github.com/alecthomas/chroma/tree/master/styles for valid styles" json:"highlight_style"`
 
 	Import struct {
@@ -171,10 +172,26 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/skiver/skiver-cli.yaml)")
 
 	s := reflect.TypeOf(CLI)
-	for _, v := range []string{"HighlightStyle", "NoColor", "Project", "WithPrettier", "PrettierPath", "PrettierDSlimPath", "LogFormat", "LogLevel", "URI", "Locale", "Token", "IgnoreFilter"} {
+	for _, v := range []string{"HighlightStyle", "Color", "Project", "WithPrettier", "PrettierPath", "PrettierDSlimPath", "LogFormat", "LogLevel", "URI", "Locale", "Token", "IgnoreFilter"} {
 		mustSetVar(s, v, rootCmd, "")
 	}
 
+}
+
+func viperPath(dir string) *viper.Viper {
+	name := "skiver-cli"
+	v := viper.New()
+	v.SetConfigName(name)
+	v.AddConfigPath(dir)
+	err := v.ReadInConfig()
+	if err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found; ignore error if desired
+			return nil
+		}
+		_pre_init_fatal_logger(err, "Failed to read config-file", map[string]interface{}{"config-file-used": v.ConfigFileUsed()})
+	}
+	return v
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -183,35 +200,39 @@ func initConfig() {
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
+		err := viper.ReadInConfig()
+		if err != nil {
+			_pre_init_fatal_logger(err, "Failed to read explicidly set config-file", map[string]interface{}{"cfg-file": cfgFile})
+		}
 	} else {
-		// Find home directory.
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
-
-		// Search config in home directory with name ".cli" (without extension).
-		viper.SetConfigName("skiver-cli")
-		viper.AddConfigPath(path.Join(home, "skiver"))
-		viper.AddConfigPath(path.Join(home, ".config", "skiver"))
-		viper.AddConfigPath(".")
-		viper.SetEnvPrefix("skiver")
-	}
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		configFile = viper.ConfigFileUsed()
-	} else {
-
-		l = logger.InitLogger(logger.LogConfig{
-			Format:     "human",
-			Level:      "debug",
-			WithCaller: true,
-		})
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Config file not found; ignore error if desired
-			l.Fatal().Err(err).Msg("Config-file not found. You can create one with `skiver config new`")
+		paths := []string{
+			path.Join(home, ".skiver"),
+			path.Join(home, ".config", "skiver"),
+			".",
 		}
-		l.Fatal().Err(err).Str("config-file", viper.ConfigFileUsed()).Msg("Failed to read config-file")
+		var settings map[string]interface{}
+		for _, p := range paths {
+			v := viperPath(p)
+			if v == nil {
+				continue
+			}
+			all := v.AllSettings()
+			if len(all) == 0 {
+				continue
+			}
+			if err := mergo.Merge(&settings, all); err != nil {
+				_pre_init_fatal_logger(err, "Failed config-merge", map[string]interface{}{"dir": p})
+			}
+
+		}
+		viper.MergeConfigMap(settings)
+
 	}
 
+	if cfgFile == "" {
+	}
 	viper.AutomaticEnv() // read in environment variables that match
 	err := (viper.Unmarshal(&CLI))
 	if err != nil {
@@ -332,4 +353,19 @@ func setVar(t reflect.Type, name string, cmd *cobra.Command, subkey string) erro
 		viper.RegisterAlias(subkey+alias, subkey+mapstructure)
 	}
 	return nil
+}
+
+// Should only be used before the logger has been initialized, for instance when parsing config etc.
+func _pre_init_fatal_logger(err error, msg string, details map[string]interface{}) {
+	l := logger.InitLogger(logger.LogConfig{
+		Level:      "debug",
+		Format:     "human",
+		WithCaller: false,
+	})
+	lerr := l.Fatal().Err(err)
+	for k, v := range details {
+		lerr = lerr.Interface(k, v)
+	}
+	lerr.Msg(msg)
+	panic("fatal")
 }

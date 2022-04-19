@@ -55,8 +55,21 @@ func (t Tokenizer) Concat() string {
 	return chroma.Stringify(t.Tokens()...)
 }
 
+func allowColors() bool {
+	switch CLI.Color {
+	case "always":
+		return true
+	case "never":
+		return false
+	}
+	if isInteractive {
+		return true
+	}
+	return false
+}
+
 func PrettyPrinttFile(filepath string, content string) (string, error) {
-	if CLI.NoColor || !isInteractive {
+	if !allowColors() {
 		return content, nil
 	}
 	lexer := lexers.Match(filepath)
