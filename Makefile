@@ -5,6 +5,8 @@ pkg :=github.com/runar-rkmedia/skiver-cli/cmd
 ldflags=-X '$(pkg).version=$(version)' -X '$(pkg).date=$(buildDate)' -X '$(pkg).commit=$(gitHash)'
 usage:
 	@echo ""
+bump:
+	tug tag
 release:
 	LDFLAG="${ldflags}" goreleaser release --rm-dist
 snapshot:
