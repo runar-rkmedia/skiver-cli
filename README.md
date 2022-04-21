@@ -42,7 +42,7 @@ The [release-binaries are available for manual download](https://github.com/runa
 Interactions with skiver, a developer-focused translation-service
 
 Usage:
-  Skiver-CLI [command]
+  skiver [command]
 
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
@@ -55,8 +55,8 @@ Available Commands:
 
 Flags:
       --color string                  Force set color output. one of 'auto', 'always', 'none'.
-      --config string                 config file (default is $HOME/skiver/skiver-cli.yaml)
-  -h, --help                          help for Skiver-CLI
+      --config string                 config file (See 'skiver config --help' for the default config-paths )
+  -h, --help                          help for skiver
       --highlight-style string        Highlighting-style to use. See https://github.com/alecthomas/chroma/tree/master/styles for valid styles
       --ignore-filter strings         Ignore-filter for files
   -l, --locale string                 Locale to use
@@ -69,7 +69,7 @@ Flags:
   -u, --uri string                    Endpoint for skiver
       --with-prettier                 Where available, will attempt to run prettier, or prettier_d if available
 
-Use "Skiver-CLI [command] --help" for more information about a command.
+Use "skiver [command] --help" for more information about a command.
 
 ```
 
@@ -101,13 +101,13 @@ ignore_filter = []
 # Locale to use
 locale = ""
 # Format to log as
-log_format = ""
+log_format = "human"
 # Level for logging.
-log_level = ""
+log_level = "info"
 # Path-override for prettier_d_slim, which should be faster than regular prettier
-prettier_d_slim_path = ""
+prettier_d_slim_path = "prettier_d_slim"
 # Path-override for prettier
-prettier_path = ""
+prettier_path = "prettier"
 # Project-id/ShortName
 project = ""
 # Token used for authentication
@@ -119,7 +119,7 @@ with_prettier = false
 
 # Configuration
 [config]
-  format = ""
+  format = "toml"
 
 # Generate files from project etc.
 [generate]

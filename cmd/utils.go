@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -42,6 +43,12 @@ func marshal(o any, format formatMode) []byte {
 		}
 		return j
 	case formatToml:
+		// Toml can only marshal structs and maps
+		switch o.(type) {
+		case string, int, int64, float64, bool, []string, []int:
+			l.Debug().Str("type", reflect.TypeOf(o).Kind().String()).Msg("Falling back to marshalling as json")
+			return marshal(o, formatJson)
+		}
 		b := bytes.Buffer{}
 		enc := toml.NewEncoder(&b)
 		enc.CompactComments(true)
@@ -50,7 +57,8 @@ func marshal(o any, format formatMode) []byte {
 		enc.SetTagName("json")
 		err := enc.Encode(o)
 		if err != nil {
-			l.Fatal().Err(err).Msg("failed to marshal (toml)")
+			l.Debug().Str("type", reflect.TypeOf(o).Kind().String()).Msg("Failed marhsalling as toml, falling back to json")
+			return marshal(o, formatJson)
 		}
 		return b.Bytes()
 	}

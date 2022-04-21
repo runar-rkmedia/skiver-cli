@@ -92,8 +92,10 @@ type config struct {
 }
 
 var (
-	configFile string
-	_api       *Api
+	configFiles        []string
+	defaultConfigFiles []string
+	configName         = "skiver-cli"
+	_api               *Api
 
 	// These are added at build...
 	version       string
@@ -133,6 +135,9 @@ func requireApi(withAuthentciation bool) *Api {
 		}
 
 		a := NewAPI(l, CLI.URI)
+		a.Headers.Set("CLIENT_APP", "skiver-cli")
+		a.Headers.Set("CLIENT_VERSION", version)
+		a.Headers.Set("CLIENT_HASH", commit)
 		_api = &a
 
 		_api.SetToken(string(CLI.Token))
@@ -145,7 +150,7 @@ func requireApi(withAuthentciation bool) *Api {
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "Skiver-CLI",
+	Use:   "skiver",
 	Short: "Interactions with skiver, a developer-focused translation-service",
 
 	Version: version,
@@ -168,8 +173,9 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
+	configCmd.Long = fmt.Sprintf("Config files are merged from the following directories:.\n\n%s\n\nThe config-file should be called `skiver-cli.{toml,yaml,json}`", marshal(getDefaultConfigPaths(), formatYaml))
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/skiver/skiver-cli.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (See 'skiver config --help' for the default config-paths )")
 
 	s := reflect.TypeOf(CLI)
 	for _, v := range []string{"HighlightStyle", "Color", "Project", "WithPrettier", "PrettierPath", "PrettierDSlimPath", "LogFormat", "LogLevel", "URI", "Locale", "Token", "IgnoreFilter"} {
@@ -179,9 +185,8 @@ func init() {
 }
 
 func viperPath(dir string) *viper.Viper {
-	name := "skiver-cli"
 	v := viper.New()
-	v.SetConfigName(name)
+	v.SetConfigName(configName)
 	v.AddConfigPath(dir)
 	err := v.ReadInConfig()
 	if err != nil {
@@ -194,9 +199,30 @@ func viperPath(dir string) *viper.Viper {
 	return v
 }
 
+func getDefaultConfigPaths() []string {
+	home, err := os.UserHomeDir()
+	cobra.CheckErr(err)
+	defaultConfigFiles = []string{
+		path.Join(home, ".skiver"),
+		path.Join(home, ".config", "skiver"),
+		".",
+	}
+
+	return defaultConfigFiles
+
+}
+
+func osArg(i int) string {
+	if len(os.Args) <= i {
+		return ""
+	}
+	return os.Args[i]
+}
+
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	godotenv.Load()
+
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
@@ -204,16 +230,10 @@ func initConfig() {
 		if err != nil {
 			_pre_init_fatal_logger(err, "Failed to read explicidly set config-file", map[string]interface{}{"cfg-file": cfgFile})
 		}
+		configFiles[0] = viper.ConfigFileUsed()
 	} else {
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
-		paths := []string{
-			path.Join(home, ".skiver"),
-			path.Join(home, ".config", "skiver"),
-			".",
-		}
 		var settings map[string]interface{}
-		for _, p := range paths {
+		for _, p := range defaultConfigFiles {
 			v := viperPath(p)
 			if v == nil {
 				continue
@@ -224,7 +244,9 @@ func initConfig() {
 			}
 			if err := mergo.Merge(&settings, all); err != nil {
 				_pre_init_fatal_logger(err, "Failed config-merge", map[string]interface{}{"dir": p})
+				continue
 			}
+			configFiles = append(configFiles, v.ConfigFileUsed())
 
 		}
 		viper.MergeConfigMap(settings)
@@ -234,7 +256,7 @@ func initConfig() {
 	if cfgFile == "" {
 	}
 	viper.AutomaticEnv() // read in environment variables that match
-	err := (viper.Unmarshal(&CLI))
+	err := viper.Unmarshal(&CLI)
 	if err != nil {
 		panic(err)
 	}

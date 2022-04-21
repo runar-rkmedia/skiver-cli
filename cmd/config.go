@@ -24,8 +24,10 @@ package cmd
 import (
 	"errors"
 	"os"
+	"reflect"
 	"strings"
 
+	"github.com/mcuadros/go-defaults"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/thediveo/enumflag"
@@ -57,44 +59,86 @@ var formatExtMap = map[formatMode][]string{
 
 // configCmd represents the config command
 var configCmd = &cobra.Command{
-	Use:       "config",
-	Short:     "Show information about the current configuration, or create a new one",
-	ValidArgs: []string{"show", "active", "raw", "new", "default"},
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) > 0 {
-			switch args[0] {
-			case "active":
-				write(configFile)
-			case "raw":
-				c := viper.AllSettings()
-				marshalout(c, format)
-			case "show":
-				marshalout(CLI, format)
-			case "default":
-				marshalout(config{}, format)
-			case "new":
-				fPath := "skiver-cli." + formatMap[format][0]
-				_, err := os.Stat(fPath)
-				if err != nil {
-					if !errors.Is(err, os.ErrNotExist) {
-						l.Fatal().Err(err).Str("filepath", fPath).Msg("Failed to stat path")
-					}
-				} else {
-					l.Fatal().Str("filepath", fPath).Msg("File already exists")
-				}
-				b := marshal(CLI, format)
-				err = os.WriteFile(fPath, b, 0677)
-				if err != nil {
-					l.Fatal().Err(err).Str("filepath", fPath).Msg("File already exists")
-				}
-			}
-		}
-	},
-	Args: cobra.OnlyValidArgs,
+	Use:   "config",
+	Short: "Show information about the current configuration, or create a new one",
+	// Run: func(cmd *cobra.Command, args []string) {
+	// },
 }
 
 func init() {
 	rootCmd.AddCommand(configCmd)
+	configCmd.AddCommand(&cobra.Command{
+		Use:   "get",
+		Short: "Get a single value from the config",
+		Run: func(cmd *cobra.Command, args []string) {
+			v := viper.Get(args[0])
+			if l.HasDebug() {
+				l.Debug().
+					Interface("value", v).
+					Str("type", reflect.TypeOf(v).Kind().String()).
+					Msg("Variable")
+			}
+			marshalout(v, format)
+		},
+		Args: cobra.ExactArgs(1),
+	})
+	configCmd.AddCommand(&cobra.Command{
+		Use:   "active",
+		Short: "Prints the active configuration-file(s) used.",
+		Run: func(cmd *cobra.Command, args []string) {
+			marshalout(configFiles, format)
+		},
+		Args: cobra.ExactArgs(0),
+	})
+	configCmd.AddCommand(&cobra.Command{
+		Use:   "raw",
+		Short: "Prints the active configuration (raw)",
+		Run: func(cmd *cobra.Command, args []string) {
+			c := viper.AllSettings()
+			marshalout(c, format)
+		},
+		Args: cobra.ExactArgs(0),
+	})
+	configCmd.AddCommand(&cobra.Command{
+		Use:   "show",
+		Short: "Prints the active configuration",
+		Run: func(cmd *cobra.Command, args []string) {
+			marshalout(CLI, format)
+		},
+		Args: cobra.ExactArgs(0),
+	})
+	configCmd.AddCommand(&cobra.Command{
+		Use:   "default",
+		Short: "Prints the default configuration-file",
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg := config{}
+			defaults.SetDefaults(&cfg)
+			marshalout(cfg, format)
+		},
+		Args: cobra.ExactArgs(0),
+	})
+	configCmd.AddCommand(&cobra.Command{
+		Use:   "new",
+		Short: "Outputs the current configuration-file to the current directory, with any settings applied from other configuration-files, env, flags etc.",
+		Run: func(cmd *cobra.Command, args []string) {
+			fPath := "skiver-cli." + formatMap[format][0]
+			_, err := os.Stat(fPath)
+			if err != nil {
+				if !errors.Is(err, os.ErrNotExist) {
+					l.Fatal().Err(err).Str("filepath", fPath).Msg("Failed to stat path")
+				}
+			} else {
+				l.Fatal().Str("filepath", fPath).Msg("File already exists")
+			}
+			b := marshal(CLI, format)
+			err = os.WriteFile(fPath, b, 0677)
+			if err != nil {
+				l.Fatal().Err(err).Str("filepath", fPath).Msg("File already exists")
+			}
+			return
+		},
+		Args: cobra.ExactArgs(0),
+	})
 
 	var formats []string
 	for _, v := range formatMap {
