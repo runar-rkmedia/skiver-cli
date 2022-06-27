@@ -23,7 +23,6 @@ package cmd
 
 import (
 	"io"
-	"log"
 	"os"
 	"reflect"
 
@@ -50,14 +49,21 @@ var generateCmd = &cobra.Command{
 		}
 		ll := l.Debug().Str("project", CLI.Project).
 			Str("format", format)
-		var o *os.File
 		if CLI.Generate.Path != "" {
-			outfile, err := os.OpenFile(CLI.Generate.Path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+			// We ensure the file exists before start. We overwrite the file with data.
+			// In case of an error, we should not write empty data.
+			// This is what would happen if opening the file with os.O_WRONLY|os.O_CREATE|os.O_TRUNC
+			err := touchFile(CLI.Generate.Path)
 			if err != nil {
-				log.Fatal(err)
+				l.Fatal().Err(err).Str("path", CLI.Generate.Path).Msg("Failed to open/create file")
 				return
 			}
-			o = outfile
+			outfile, err := os.OpenFile(CLI.Generate.Path, os.O_WRONLY, os.ModePerm)
+			if err != nil {
+				l.Fatal().Err(err).Str("path", CLI.Generate.Path).Msg("Failed to open file for writing")
+				return
+			}
+			defer outfile.Close()
 			w = outfile
 			ll = ll.Str("path", CLI.Generate.Path)
 		}
@@ -78,7 +84,6 @@ var generateCmd = &cobra.Command{
 		if err != nil {
 			l.Fatal().Err(err).Msg("Failed export")
 		}
-		o.Close()
 		l.Debug().Msg("Export completed")
 		if CLI.WithPrettier && CLI.Generate.Path != "" {
 			out, err := runPrettier(CLI.Generate.Path, nil)
@@ -96,4 +101,11 @@ func init() {
 	for _, v := range []string{"Format", "Path"} {
 		mustSetVar(s, v, generateCmd, "generate.")
 	}
+}
+func touchFile(name string) error {
+	file, err := os.OpenFile(name, os.O_RDONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	return file.Close()
 }
