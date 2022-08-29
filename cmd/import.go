@@ -5,6 +5,7 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/spf13/cobra"
@@ -24,10 +25,13 @@ var importCmd = &cobra.Command{
 		if !exists {
 			l.Fatal().Str("path", CLI.Import.Source).Msg("File not found")
 		}
-		err := api.Import(CLI.Project, "i18n", CLI.Locale, source)
+		_, result, err := api.Import(CLI.Project, "i18n", CLI.Locale, source, CLI.Import.DryRun)
 		if err != nil {
 			l.Fatal().Err(err).Msg("Failed to import")
 		}
+
+		fmt.Printf("This would create %d translations, and %d updates\n", len(result.Diff.Creations), len(result.Diff.Updates))
+		fmt.Println(result)
 		l.Info().Msg("Successful import")
 	},
 }
@@ -35,7 +39,7 @@ var importCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(importCmd)
 	s := reflect.TypeOf(CLI.Import)
-	for _, v := range []string{"Source"} {
+	for _, v := range []string{"Source", "DryRun"} {
 		mustSetVar(s, v, importCmd, "import.")
 	}
 }

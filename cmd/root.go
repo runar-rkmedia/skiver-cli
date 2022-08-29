@@ -67,6 +67,7 @@ type config struct {
 	HighlightStyle    string   `help:"Highlighting-style to use. See https://github.com/alecthomas/chroma/tree/master/styles for valid styles" json:"highlight_style"`
 
 	Import struct {
+		DryRun bool   `help:"Enable dry-run" json:"dry_run"`
 		Source string `help:"Source-file for import" arg:"" env:"SKIVER_IMPORT_SOURCE" json:"source"`
 	} `help:"Import from file" cmd:"" json:"import"`
 	Generate struct {
@@ -98,7 +99,7 @@ var (
 	_api               *Api
 
 	// These are added at build...
-	version       string
+	version       string = "v0.0.1"
 	date          string
 	buildDate     time.Time
 	builtBy       string
@@ -139,6 +140,7 @@ func requireApi(withAuthentciation bool) *Api {
 		a.Headers.Set("CLIENT_VERSION", version)
 		a.Headers.Set("CLIENT_HASH", commit)
 		_api = &a
+		a.verifyLatestVersion()
 
 		_api.SetToken(string(CLI.Token))
 	}

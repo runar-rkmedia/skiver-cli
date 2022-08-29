@@ -10,7 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
+	markdown "github.com/MichaelMure/go-term-markdown"
 	"github.com/dustin/go-humanize"
+	"github.com/ghodss/yaml"
 	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/go-common/utils"
 	"github.com/runar-rkmedia/skiver/handlers"
@@ -25,6 +28,7 @@ type Api struct {
 	login    *types.LoginResponse
 	client   *http.Client
 	Headers  http.Header
+	DryRun   bool
 }
 
 func NewAPI(l logger.AppLogger, endpoint string) Api {
@@ -39,6 +43,101 @@ func NewAPI(l logger.AppLogger, endpoint string) Api {
 		l.Debug().Str("uri", endpoint).Msg("Using skiver-api")
 	}
 	return api
+}
+
+func (a *Api) verifyLatestVersion() {
+
+	if version == "" {
+		return
+	}
+	info, err := a.ServerInfo()
+	if err != nil {
+		a.l.Error().Err(err).Msg("There was a problem fetching the server-info")
+		return
+	}
+	if info.Instance == "" && info.HostHash == "" {
+		a.l.Fatal().
+			Str("endpoint", a.endpoint).
+			Msg("This does not look like a Skiver-api...")
+	}
+	y, _ := yaml.Marshal(info)
+	fmt.Println(string(y))
+	currentCli := semver.MustParse(version)
+	if info.LatestCliRelease != nil && info.LatestCliRelease.TagName != "" {
+		if v, err := semver.NewVersion(info.LatestCliRelease.TagName); err == nil {
+			v.GreaterThan(currentCli)
+			if info.LatestCliRelease.Body != "" {
+				result := markdown.Render(fmt.Sprintf("---\n\n🎉🎉🎉 version %s of Skiver-CLI is available 🎉🎉🎉 \n\n%s\n\n---\n\nGet it from %s",
+					info.LatestCliRelease.TagName,
+					info.LatestCliRelease.Body,
+					info.LatestCliRelease.HTMLURL,
+				), 80, 2)
+				fmt.Println(string(result))
+			}
+		} else {
+			a.l.Warn().
+				Err(err).
+				Str("newversion", info.LatestCliRelease.TagName).
+				Msg("There was a problem parsing the TagName for the release")
+		}
+	}
+	if info.LatestCliRelease != nil && info.LatestRelease.TagName != "" && info.Version != "" {
+		if currentApi, err := semver.NewVersion(info.Version); err == nil {
+			if v, err := semver.NewVersion(info.LatestRelease.TagName); err == nil {
+				v.GreaterThan(currentApi)
+				// a.l.Info().
+				// 	Str("newversion", info.LatestCliRelease.TagName).
+				// 	Str("url", info.LatestCliRelease.HTMLURL).
+				// 	Str("changelog", info.LatestCliRelease.Body).
+				// 	Msg("There is a new version available. Please upgrade.")
+				if info.LatestCliRelease.Body != "" {
+					result := markdown.Render(fmt.Sprintf("---\n\n🎉🎉🎉 version %s of Skiver-API is available 🎉🎉🎉 \n\n%s\n\n---",
+						info.LatestRelease.TagName,
+						info.LatestRelease.Body,
+					), 80, 2)
+					fmt.Println(string(result))
+				}
+			} else {
+				a.l.Warn().
+					Err(err).
+					Str("newversion", info.LatestRelease.TagName).
+					Msg("There was a problem parsing the TagName for the servers latest release")
+			}
+		} else {
+			a.l.Warn().
+				Err(err).
+				Str("newversion", info.Version).
+				Msg("There was a problem parsing the Version for the server")
+		}
+	}
+
+	if info.MinCliVersion != "" {
+		if v, err := semver.NewVersion(info.MinCliVersion); err == nil {
+			v.GreaterThan(currentCli)
+			// a.l.Info().
+			// 	Str("newversion", info.LatestCliRelease.TagName).
+			// 	Str("url", info.LatestCliRelease.HTMLURL).
+			// 	Str("changelog", info.LatestCliRelease.Body).
+			// 	Msg("There is a new version available. Please upgrade.")
+			if info.LatestCliRelease.Body != "" {
+				result := markdown.Render(fmt.Sprintf("---\n\n🎉🎉🎉 version %s is avilable 🎉🎉🎉 \n\n%s\n\n---\n\nGet it from %s",
+					info.LatestCliRelease.TagName,
+					info.LatestCliRelease.Body,
+					info.LatestCliRelease.HTMLURL,
+				), 80, 2)
+				fmt.Println(string(result))
+			}
+		} else {
+			a.l.Warn().
+				Err(err).
+				Str("newversion", info.LatestCliRelease.TagName).
+				Msg("There was a problem parsing the TagName for the release")
+		}
+	}
+	if info.MinCliVersion == "" {
+		return
+	}
+
 }
 
 func (a *Api) SetToken(token string) {
@@ -84,19 +183,22 @@ func (a *Api) Login(username, password string) error {
 
 }
 
-func (a Api) Import(projectName string, kind string, locale string, reader io.Reader) error {
+func (a Api) Import(projectName string, kind string, locale string, reader io.Reader, dryRun bool) (*http.Response, handlers.ImportResult, error) {
+	var j handlers.ImportResult
 	if len(a.cookies) == 0 {
-		return fmt.Errorf("Not logged in")
+		return nil, j, fmt.Errorf("Not logged in")
 	}
 	r, err := a.NewRequest(http.MethodPost, "/api/import/"+kind+"/"+projectName+"/"+locale, reader)
 	if err != nil {
-		return fmt.Errorf("failed to create import-request: %w", err)
+		return nil, j, fmt.Errorf("failed to create import-request: %w", err)
+	}
+	if dryRun {
+		r.Header.Set("dry-run", "1")
 	}
 
-	var j handlers.ImportResult
 	res, err := a.Do(r, &j)
 	if err != nil {
-		return fmt.Errorf("failed reading body of import-request: %w", err)
+		return res, j, err
 	}
 	if a.l.HasDebug() {
 		a.l.Debug().
@@ -104,16 +206,26 @@ func (a Api) Import(projectName string, kind string, locale string, reader io.Re
 			Str("path", res.Request.URL.String()).
 			Str("method", res.Request.Method).
 			Interface("import-warnings", j.Warnings).
-			Int("translation-creations", len(j.Changes.TranslationCreations)).
-			Int("category-creations", len(j.Changes.CategoryCreations)).
-			Int("translation-value-creations", len(j.Changes.TranslationValueUpdates)).
-			Int("translation-value-creations", len(j.Changes.TranslationsValueCreations)).
+			Int("translation-creations", len(j.Diff.Creations)).
+			Int("translation-updates", len(j.Diff.Updates)).
 			Msg("Result of request")
 	}
-	return nil
+	return res, j, nil
 
 }
 
+func (a Api) ServerInfo() (models.ServerInfo, error) {
+	var info models.ServerInfo
+
+	r, err := a.NewRequest(http.MethodGet, "/api/serverInfo/", nil)
+	if err != nil {
+		a.l.Fatal().Err(err)
+	}
+	a.Do(r, &info)
+
+	return info, nil
+
+}
 func (a Api) Export(projectName string, format string, locale string, writer io.Writer) error {
 	if len(a.cookies) == 0 {
 		return fmt.Errorf("Not logged in")
@@ -161,6 +273,9 @@ func (a *Api) NewRequest(method string, subpath string, body io.Reader) (*http.R
 	r, err := http.NewRequest(method, uri, body)
 	if err != nil {
 		return r, err
+	}
+	if a.DryRun {
+		r.Header.Set("dry-run", "1")
 	}
 	r.Header = a.Headers.Clone()
 	r.Header.Set("Content-Type", "application/json")
