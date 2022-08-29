@@ -22,7 +22,7 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"io"
+	"bytes"
 	"os"
 	"reflect"
 
@@ -35,7 +35,8 @@ var generateCmd = &cobra.Command{
 	Short: "Generate files for the project",
 	Run: func(cmd *cobra.Command, args []string) {
 		api := requireApi(false)
-		var w io.Writer
+		// var buf io.Writer
+		buf := &bytes.Buffer{}
 		format := CLI.Generate.Format
 		locale := CLI.Locale
 		if locale == "" {
@@ -49,28 +50,6 @@ var generateCmd = &cobra.Command{
 		}
 		ll := l.Debug().Str("project", CLI.Project).
 			Str("format", format)
-		if CLI.Generate.Path != "" {
-			// We ensure the file exists before start. We overwrite the file with data.
-			// In case of an error, we should not write empty data.
-			// This is what would happen if opening the file with os.O_WRONLY|os.O_CREATE|os.O_TRUNC
-			err := touchFile(CLI.Generate.Path)
-			if err != nil {
-				l.Fatal().Err(err).Str("path", CLI.Generate.Path).Msg("Failed to open/create file")
-				return
-			}
-			outfile, err := os.OpenFile(CLI.Generate.Path, os.O_WRONLY, os.ModePerm)
-			if err != nil {
-				l.Fatal().Err(err).Str("path", CLI.Generate.Path).Msg("Failed to open file for writing")
-				return
-			}
-			defer outfile.Close()
-			w = outfile
-			ll = ll.Str("path", CLI.Generate.Path)
-		}
-		if w == nil {
-			w = os.Stdout
-			ll = ll.Bool("stdout", true)
-		}
 
 		if l.HasDebug() {
 			ll.Msg("Generating file")
@@ -80,18 +59,33 @@ var generateCmd = &cobra.Command{
 			// (don't have the time right now)
 			format = "typescript"
 		}
-		err := api.Export(CLI.Project, format, locale, w)
+		// fmt.Println("writer", writer)
+		err := api.Export(CLI.Project, format, locale, buf)
 		if err != nil {
 			l.Fatal().Err(err).Msg("Failed export")
 		}
 		l.Debug().Msg("Export completed")
+		if CLI.Generate.Path == "" {
+			os.Stdout.Write(buf.Bytes())
+			return
+		}
+		if buf.Len() == 0 {
+			l.Fatal().Msg("No output generated")
+
+		}
+		err = os.WriteFile(CLI.Generate.Path, buf.Bytes(), 0644)
+		if err != nil {
+			l.Fatal().Err(err).
+				Str("path", CLI.Generate.Path).
+				Msg("Failed during write to file")
+		}
+		l.Info().Msg("Successful export")
 		if CLI.WithPrettier && CLI.Generate.Path != "" {
 			out, err := runPrettier(CLI.Generate.Path, nil)
 			if err != nil {
 				l.Error().Err(err).Str("out", string(out)).Msg("Failed to run prettier on output")
 			}
 		}
-		l.Info().Msg("Successful export")
 	},
 }
 
